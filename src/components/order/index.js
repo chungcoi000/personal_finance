@@ -1,10 +1,4 @@
-import {
-	Button,
-	Card,
-	Col, DatePicker, Drawer,
-	Form, Input, Modal, notification,
-	Row, Space,
-} from "antd";
+import {Button, Card, Col, DatePicker, Divider, Drawer, Form, Input, Modal, notification, Row, Space,} from "antd";
 import {useEffect, useState} from "react";
 import {getDataFromStorage, setDataToStorage} from "../../services/storageServices";
 import {setItem} from "../../redux/actions/Order";
@@ -27,6 +21,7 @@ const Index = (props) => {
 	}, []);
 
 	const orders = useSelector(state => state.order);
+
 
 	const onSelect = (value) => {
 		const selectedDate = new Date(value).getTime();
@@ -60,7 +55,6 @@ const Index = (props) => {
 			name: data?.name,
 			date: data?.date,
 			products: data?.products ?? null,
-			totals: data?.totals ?? null
 		})
 	}
 
@@ -69,8 +63,7 @@ const Index = (props) => {
 			id: values?.id ?? Math.random(),
 			name: values?.name,
 			date: values?.date ?? selectedDate,
-			products: values?.products ?? null,
-			totals: values?.total ?? null
+			products: values?.products ?? [],
 		}
 
 		if (mode && mode === 'ADD') {
@@ -92,7 +85,6 @@ const Index = (props) => {
 			setItem(newList);
 			setDataToStorage('order', newList);
 			setModalVisible(false);
-			setVisible(true);
 			notification.success({
 				message: 'Update Order Success'
 			})
@@ -126,51 +118,58 @@ const Index = (props) => {
 					<Form.Item label='Name' name='name'>
 						<Input placeholder='Please input name'/>
 					</Form.Item>
-					<Form.Item label='Date'>
-						<DatePicker size='large' value={moment(data.date)} onSelect={value => onSelect(value)}/>
-					</Form.Item>
 					{
-						mode === 'EDIT'
+						mode === 'ADD'
 							?
-							<div>
-								<p>Products</p>
-								<Form.List name="products">
-									{(fields, {add, remove}) => (
-										<>
-											{fields.map((field, key) => (
-												<Space key={key} style={{display: 'flex', marginBottom: 8}} align="baseline">
-													<Form.Item
-														name={[key, 'name']}
-														label="Name"
-													>
-														<Input placeholder="Enter name..."/>
-													</Form.Item>
-													<Form.Item
-														name={[key, 'quantity']}
-														label="Quantity"
-													>
-														<Input placeholder="Enter Quantity"/>
-													</Form.Item>
-													<Form.Item
-														name={[key, 'price']}
-														label="Price"
-													>
-														<Input placeholder="Enter price"/>
-													</Form.Item>
-													<MinusCircleOutlined style={{alignItems: 'center'}} onClick={() => remove(field.name)}/>
-												</Space>
-											))}
-											<Form.Item>
-												<Button type="dashed" onClick={() => add()} block icon={<PlusOutlined/>}>
-													Add field
-												</Button>
-											</Form.Item>
-										</>
-									)}
-								</Form.List>
-							</div>
-							: null
+							<Form.Item label='Date'>
+								<DatePicker size='large' onSelect={value => onSelect(value)}/>
+							</Form.Item>
+							:
+							<Form.Item label='Date'>
+								<DatePicker size='large' defaultValue={moment(data.date)} onSelect={value => onSelect(value)}/>
+							</Form.Item>
 					}
+					<div>
+						<p>Products</p>
+						<Form.List name="products">
+							{(fields, {add, remove}) => (
+								<>
+									{fields.map((field, key) => (
+										<Space key={key} style={{display: 'flex', marginBottom: 8}} align="baseline">
+											<Form.Item
+												name={[key, 'name']}
+												label="Name"
+												rules={[{ required: true, message: 'Missing name' }]}
+											>
+												<Input placeholder="Enter name..."/>
+											</Form.Item>
+											<Form.Item
+												name={[key, 'quantity']}
+												label="Quantity"
+												rules={[{ required: true, message: 'Missing quantity' }]}
+											>
+												<Input placeholder="Enter Quantity"/>
+											</Form.Item>
+											<Form.Item
+												name={[key, 'price']}
+												label="Price"
+												rules={[{ required: true, message: 'Missing price' }]}
+											>
+												<Input placeholder="Enter price"/>
+											</Form.Item>
+											<MinusCircleOutlined style={{alignItems: 'center'}} onClick={() => remove(field.name)}/>
+										</Space>
+									))}
+									<Form.Item>
+										<Button type="dashed" onClick={() => add()} block icon={<PlusOutlined/>}>
+											Add product
+										</Button>
+									</Form.Item>
+								</>
+							)}
+						</Form.List>
+					</div>
+
 
 					<Form.Item>
 						<Space style={{float: 'right'}}>
@@ -197,15 +196,19 @@ const Index = (props) => {
 										onClick={() => {
 											setVisible(true);
 											setData(order);
-											console.log(data)
 										}}
 									>
 										<div>
 											<h3 className='mb-0'>{order.name}</h3>
 											<span>{moment(parseInt(order.date)).format('DD-MM-YYYY')}</span>
 											{
-												order.total
-													? <p>{order.total} VND</p>
+												order.products
+													?
+													<p>
+														{order.products.reduce((total, product) => {
+															return total += (product.quantity * product.price)
+														}, 0)} VND
+													</p>
 													: null
 											}
 										</div>
@@ -214,11 +217,12 @@ const Index = (props) => {
 							)
 						})
 					}
-
 					<Drawer
 						title='Order Detail'
 						visible={visible}
 						closable={false}
+						width={350}
+
 						onClose={() => {
 							setVisible(false)
 						}}
@@ -255,27 +259,53 @@ const Index = (props) => {
 								<p>Date: {moment(parseInt(data.date)).format('DD-MM-YYYY')}</p>
 							</Col>
 						</Row>
+
+						<Divider/>
 						<Row>
 							{
-								data.products.map(product => {
-									return (
-										<Row gutter={12}>
-											<Col>
-												<p>Product: {product.name}</p>
-											</Col>
-											<Col>
-												<p>Price: {product.price}</p>
-											</Col>
-											<Col>
-												<p>Quantity: {product.quantity}</p>
-											</Col>
-										</Row>
-									)
-								})
+								data.products ?
+									data.products.map(product => {
+										return (
+											<div>
+												<Row gutter={12}>
+													<Col>
+														<p>Product: {product.name}</p>
+													</Col>
+
+												</Row>
+												<Row gutter={12}>
+													<Col span={9}>
+														<p>Price: {product.price}</p>
+													</Col>
+													<Col span={12}>
+														<p>Quantity: {product.quantity}</p>
+													</Col>
+													<Col span={15}>
+														<p>Total Price: {product.price * product.quantity}</p>
+													</Col>
+												</Row>
+												<div>
+													<Divider/>
+												</div>
+											</div>
+
+										)
+									})
+									: null
 							}
 						</Row>
+						{
+							data.products
+								? <Row style={{float: 'right'}}>
+									<p>
+										Order's Total: {data.products.reduce((total, product) => {
+										return total += (product.quantity * product.price)
+									}, 0)}
+									</p>
+								</Row>
+								: null
+						}
 					</Drawer>
-
 				</Row>
 			</div>
 		</div>
